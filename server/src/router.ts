@@ -1,45 +1,32 @@
-import * as trpc from '@trpc/server';
-import { z } from 'zod';
+import { inferAsyncReturnType, initTRPC } from '@trpc/server';
 import * as trpcExpress from '@trpc/server/adapters/express';
+import { z } from 'zod';
 
-export const createContext = ({
-  req,
-}: trpcExpress.CreateExpressContextOptions) => {
-  const getAuthorization = () => {
-    return req.headers.authorization || '';
-  };
+export const createContext =
+  ({}: trpcExpress.CreateExpressContextOptions) => ({});
+type Context = inferAsyncReturnType<typeof createContext>;
 
-  return {
-    authorization: getAuthorization(),
-  };
-};
-type Context = trpc.inferAsyncReturnType<typeof createContext>;
+export const t = initTRPC.context<Context>().create();
 
-const createRouter = () => {
-  return trpc.router<Context>();
-};
-
-export const appRouter = createRouter()
-  .query('hello', {
-    input: z
-      .object({
-        text: z.string().nullish(),
-      })
-      .nullish(),
-    resolve({ input, ctx }) {
+export const appRouter = t.router({
+  getUser: t.procedure.input(z.string()).query((req) => {
+    return {
+      id: req.input,
+      name: 'John',
+    };
+  }),
+  createUser: t.procedure
+    .input(z.object({ name: z.string(), age: z.number() }))
+    .mutation(async (req) => {
+      await new Promise(() => {
+        return;
+      });
       return {
-        greeting: `hello ${input?.text ?? 'world'}`,
-        authorization: `token is ${ctx.authorization}`,
+        id: 'id',
+        name: req.input.name,
+        age: req.input.age,
       };
-    },
-  })
-  .mutation('mutation', {
-    input: z.object({
-      text: z.string(),
     }),
-    resolve() {
-      return {};
-    },
-  });
+});
 
 export type AppRouter = typeof appRouter;
